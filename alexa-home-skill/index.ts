@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import handlers from './handlers'
 import * as _ from 'lodash'
 import { findUser } from './handlers/authorization'
+import { Log } from './lib/log'
 
 const controllers = [
   Alexa.DirectiveName.BrightnessController,
@@ -14,13 +15,22 @@ const controllers = [
 export const handler = async (payload: Alexa.Interface, context: Context) => {
   let response: Alexa.Response | null = null
   let profile: ProfileUser | null = null
-  const tokenProfile: string = _.get(payload, 'directive.payload.grantee.token')
+  const tokenProfile: string = _.get(
+    payload,
+    'directive.endpoint.scope.token',
+    _.get(payload, 'directive.payload.scope.token')
+  )
   try {
     if (tokenProfile) {
       profile = await findUser(tokenProfile)
     }
+    Log('payload', payload)
+    Log('profile', profile)
     const directive = payload.directive.header.namespace
-    if (controllers.includes(directive)) {
+    if (
+      controllers.includes(directive) ||
+      directive === Alexa.DirectiveName.Alexa
+    ) {
       response = await handlers.controller(payload, profile)
     } else {
       switch (directive) {
@@ -51,5 +61,6 @@ export const handler = async (payload: Alexa.Interface, context: Context) => {
       },
     }
   }
+  Log('response', response)
   return context.succeed(response)
 }

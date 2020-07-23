@@ -17,6 +17,7 @@ const buscaDevices = (
     dynamoDB.query(
       {
         TableName: 'iot-devices',
+        IndexName: 'user_id-index',
         KeyConditionExpression: '#id = :id',
         ExpressionAttributeNames: {
           '#id': 'user_id',
@@ -56,7 +57,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: true,
+            retrievable: false,
           },
         })
         break
@@ -72,7 +73,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: true,
+            retrievable: false,
           },
         })
         break
@@ -88,7 +89,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: true,
+            retrievable: false,
           },
         })
         break
@@ -104,7 +105,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: true,
+            retrievable: false,
           },
         })
         break
@@ -153,6 +154,7 @@ export default (
       }
       resolve(response)
     } catch (err) {
+      console.log('Erro find devices', err)
       reject({
         message: err.message,
         code: err.code,

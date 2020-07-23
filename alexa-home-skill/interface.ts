@@ -38,6 +38,7 @@ namespace Alexa {
     Discovery = 'Alexa.Discovery',
     Response = 'Response',
     AddOrUpdateReport = 'AddOrUpdateReport',
+    ReportState = 'ReportState',
   }
 
   export type Payload = PayloadAuthorization | { [name: string]: any }

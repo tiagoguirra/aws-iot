@@ -5,11 +5,13 @@ import {
   IotDevice,
   Alexa,
   DeviceCategory,
+  UserToken,
 } from './interface'
 import { DynamoDB, AWSError } from 'aws-sdk'
 import * as _ from 'lodash'
 import axios from 'axios'
 import { v4 as uuidv4 } from 'uuid'
+import * as moment from 'moment'
 
 const dynamoDB = new DynamoDB.DocumentClient()
 const findUser = (userId: string) => {
@@ -62,7 +64,7 @@ const normalizeDeviceCapatibilities = (
 
   for (const i in device.capabilities) {
     const item = device.capabilities[i]
-    switch (item.name) {
+    switch (item) {
       case 'power':
         capabilities.push({
           interface: Alexa.CapacityInterface.PowerController,
@@ -75,7 +77,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: true,
+            retrievable: false,
           },
         })
         break
@@ -91,7 +93,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: true,
+            retrievable: false,
           },
         })
         break
@@ -107,7 +109,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: true,
+            retrievable: false,
           },
         })
         break
@@ -123,7 +125,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: true,
+            retrievable: false,
           },
         })
         break
@@ -147,19 +149,85 @@ const normalizeDevice = (device: IotDevice): Alexa.Device => {
     capabilities: normalizeDeviceCapatibilities(device),
   }
 }
-const reportAlexa = async (device: IotDevice, user: any) => {
-  try {
-    const authorization = await axios.post(
-      'https://api.amazon.com/auth/o2/token',
-      {
-        grant_type: 'authorization_code',
-        code: _.get(user, 'auth_code'),
+
+const tokenIsValid = (token: UserToken): boolean => {
+  const creation = _.get(token, 'created_at')
+  const expires = _.get(token, 'expires_in')
+  const now = moment().unix()
+  const expireAt = moment(creation)
+    .add(expires, 'seconds')
+    .unix()
+  return expireAt > now
+}
+
+const updateTokens = (token: UserToken): Promise<UserToken> => {
+  return new Promise(async (resolve, reject) => {
+    axios
+      .post('https://api.amazon.com/auth/o2/token', {
+        grant_type: 'refresh_token',
+        refresh_token: token.refresh_token,
         client_id: process.env.CLIENT_ID,
         client_secret: process.env.CLIENT_SECRET,
+      })
+      .then(data => {
+        dynamoDB.put(
+          {
+            TableName: 'iot-users-tokens',
+            Item: {
+              code: token.code,
+              access_token: _.get(data, 'data.access_token'),
+              refresh_token: _.get(data, 'data.refresh_token'),
+              expires_in: _.get(data, 'data.expires_in'),
+              token_type: _.get(data, 'data.token_type'),
+              created_at: new Date().toISOString(),
+              user_id: token.user_id,
+            },
+          },
+          (err: AWSError, data: DynamoDB.DocumentClient.PutItemOutput) => {
+            if (err) {
+              reject(err)
+            } else {
+              resolve(data as UserToken)
+            }
+          }
+        )
+      })
+      .catch(err => {
+        console.log('Falha ao gerar tokens de acesso usuário', err)
+        reject(err)
+      })
+  })
+}
+const findTokens = (userId: string): Promise<UserToken> => {
+  return new Promise((resolve, reject) => {
+    dynamoDB.get(
+      {
+        TableName: 'iot-users-tokens',
+        Key: {
+          user_id: userId,
+        },
+      },
+      (err: AWSError, data: DynamoDB.DocumentClient.GetItemOutput) => {
+        if (err) {
+          console.log('Falha ao buscar tokens do usuário', err)
+          reject(err)
+        } else {
+          resolve(_.get(data, 'Item') as UserToken)
+        }
       }
     )
+  })
+}
+const reportAlexa = async (device: IotDevice, user: any) => {
+  try {
+    let token = await findTokens(user.user_id)
+    if (!tokenIsValid(token)) {
+      console.log('Token is invalid', token)
+      token = await updateTokens(token)
+      console.log('Update token', token)
+    }
     const deviceNormalized = normalizeDevice(device)
-    await axios.post(
+    const response = await axios.post(
       'https://api.amazonalexa.com/v3/events',
       {
         event: {
@@ -170,10 +238,10 @@ const reportAlexa = async (device: IotDevice, user: any) => {
             messageId: uuidv4(),
           },
           payload: {
-            endpointId: [deviceNormalized],
+            endpoints: [deviceNormalized],
             scope: {
               type: 'BearerToken',
-              token: _.get(authorization, 'data.access_token'),
+              token: token.access_token,
             },
           },
         },
@@ -181,10 +249,11 @@ const reportAlexa = async (device: IotDevice, user: any) => {
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + _.get(authorization, 'data.access_token'),
+          Authorization: 'Bearer ' + token.access_token,
         },
       }
     )
+    console.log('Reportado Alexa', { device: deviceNormalized, response })
   } catch (err) {
     console.log('Falha ao reportar novo device a alexa', err)
   }

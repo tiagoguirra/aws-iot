@@ -8,6 +8,7 @@ import {
 import { v4 as uuidv4 } from 'uuid'
 import * as _ from 'lodash'
 import { DynamoDB, AWSError } from 'aws-sdk'
+import { Log } from '../lib/log'
 interface ControllerResponse {
   name: string
   value: any
@@ -110,18 +111,30 @@ const lockControll = async (
     value: value,
   }
 }
+const reportControll = async (
+  endpointId: string,
+  correlation: string
+): Promise<void> => {
+  const device = await findDevice(endpointId)
+  await saveDeviceEvent(device.device_id, 'state', correlation)
+}
 export default (
   payload: Alexa.Interface,
   profile: ProfileUser
 ): Promise<Alexa.Response> => {
   return new Promise(async (resolve, reject) => {
     try {
-      const { name, namespace, correlationToken } = payload.directive.header
+      const {
+        name,
+        namespace,
+        correlationToken,
+        messageId,
+      } = payload.directive.header
       const eventResponse = {
         header: {
           namespace: Alexa.DirectiveName.Alexa,
           name: Alexa.DirectiveName.Response,
-          messageId: uuidv4(),
+          messageId,
           correlationToken: correlationToken,
           payloadVersion: '3',
         },
@@ -133,7 +146,6 @@ export default (
       const endpointId: string = payload.directive.endpoint.endpointId
 
       let result: ControllerResponse
-
       switch (namespace) {
         case Alexa.DirectiveName.PowerController:
           result = await powerControll(endpointId, name)
@@ -153,6 +165,14 @@ export default (
         case Alexa.DirectiveName.LockController:
           result = await lockControll(endpointId, name)
           break
+        case Alexa.DirectiveName.Alexa:
+          if (name === Alexa.DirectiveName.ReportState) {
+            await reportControll(endpointId, correlationToken)
+            return resolve({
+              event: eventResponse,
+            })
+          }
+          break
         default:
       }
       let timeOfSample = new Date().toISOString()
@@ -162,7 +182,7 @@ export default (
           properties: [
             {
               ...result,
-              namespace: Alexa.DirectiveName.LockController,
+              namespace,
               timeOfSample,
               uncertaintyInMilliseconds: 50,
             },
@@ -170,6 +190,7 @@ export default (
         },
       })
     } catch (err) {
+      Log('Falha ao controlar device', err)
       reject({
         message: err.message,
         code: err.code,

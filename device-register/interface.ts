@@ -12,7 +12,7 @@ export interface IotDevice {
   topic_sub: string
   type: string
   name: string
-  capabilities: { name: string }[]
+  capabilities: string[]
   updatedAt: string
 }
 export interface LambdaContext {
@@ -58,7 +58,7 @@ export namespace Alexa {
     Alexa = 'Alexa',
     Discovery = 'Alexa.Discovery',
     Response = 'Response',
-    AddOrUpdateReport = 'AddOrUpdateReport'
+    AddOrUpdateReport = 'AddOrUpdateReport',
   }
 
   export type Payload = PayloadAuthorization
@@ -162,4 +162,14 @@ export enum DeviceCategory {
   RGB_LIGHT = 'LIGHT',
   SWITCH = 'SWITCH',
   SMARTLOCK = 'SMARTLOCK',
+}
+export interface UserToken {
+  access_token: string
+  refresh_token: string
+  expires_in: string
+  creation_token: string
+  token_type: string
+  created_at: string
+  user_id: string
+  code: string
 }
