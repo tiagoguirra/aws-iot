@@ -62,5 +62,9 @@ export const handler = async (payload: Alexa.Interface, context: Context) => {
     }
   }
   Log('response', response)
-  return context.succeed(response)
+  if (response) {
+    return context.succeed(response)
+  } else {
+    context.done()
+  }
 }

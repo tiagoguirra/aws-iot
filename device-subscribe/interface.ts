@@ -1,4 +1,5 @@
 export interface EventPayload {
+  event_id: string
   device_id: string
   event: EventDeviceInterface
   interface: string

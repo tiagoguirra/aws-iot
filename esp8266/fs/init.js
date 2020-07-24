@@ -37,13 +37,14 @@ function event_handler(conn, ev, edata) {
     print('MQTT unknow event:', ev);
   }
 }
-function report(correlation) {
+function report(event_id,correlation) {
   let response = {
     device_id: DEVICE_ID,
     event: 'report',
     interface: 'power',
     value: state.power,
     correlation: correlation,
+    event_id: event_id,
   };
   print('Reporting');
   MQTT.pub(MQTT_PUB_TOPIC, JSON.stringify(response), 1);
@@ -53,7 +54,7 @@ function report(correlation) {
 function connection_report() {
   if (MQTT.isConnected()) {
     print('MQTT report:', 'Is Connected');
-    report();
+    report('','');
   } else {
     print('MQTT report:', 'Desconnected');
   }
@@ -78,7 +79,7 @@ function device_event_handler(conn, topic, msg) {
   } else if (interface === 'color') {
   } else if (interface === 'lock') {
   } else if (interface === 'state') {
-    report(event.action);
+    report(event.event_id,event.action);
   } else {
     print('Device capability unknow:', event);
   }

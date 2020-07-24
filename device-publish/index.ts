@@ -42,7 +42,7 @@ const normalizeItem = (item: EventTriggerItem): DeviceEvent => {
 
 const sendDeviceEvent = (
   device: Device,
-  event: { capability: string; action: string }
+  event: { capability: string; action: string; event_id: string }
 ) => {
   return new Promise((resolve, reject) => {
     console.log('sendDeviceEvent', { device, event })
@@ -77,6 +77,7 @@ export const handler = async (
       await sendDeviceEvent(device, {
         action: item.action,
         capability: item.capability,
+        event_id: item.event_id,
       })
     }
     callback(null)

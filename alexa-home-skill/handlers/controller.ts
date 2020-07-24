@@ -168,9 +168,7 @@ export default (
         case Alexa.DirectiveName.Alexa:
           if (name === Alexa.DirectiveName.ReportState) {
             await reportControll(endpointId, correlationToken)
-            return resolve({
-              event: eventResponse,
-            })
+            return resolve()
           }
           break
         default:
@@ -184,7 +182,7 @@ export default (
               ...result,
               namespace,
               timeOfSample,
-              uncertaintyInMilliseconds: 50,
+              uncertaintyInMilliseconds: 6000,
             },
           ],
         },

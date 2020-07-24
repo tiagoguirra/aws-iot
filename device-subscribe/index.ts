@@ -49,7 +49,7 @@ export const handler = async (
         name: '',
         value: payload.value,
         timeOfSample: new Date().toISOString(),
-        uncertaintyInMilliseconds: 500,
+        uncertaintyInMilliseconds: 0,
       }
       switch (payload.interface) {
         case 'power':
@@ -69,20 +69,20 @@ export const handler = async (
           status.name = 'lockState'
           break
       }
-      let responsePayload = {}
-      let responseContext: any = {
-        properties: [status],
-      }
-      if (correlationToken) {
-        responsePayload = {
-          change: {
-            cause: {
-              type: 'PHYSICAL_INTERACTION',
-            },
-            properties: [status],
+      let responsePayload: any = {
+        change: {
+          cause: {
+            type: 'PHYSICAL_INTERACTION',
           },
+          properties: [status],
+        },
+      }
+      let responseContext: any = {}
+      if (correlationToken) {
+        responsePayload = {}
+        responseContext = {
+          properties: [status],
         }
-        responseContext = {}
       }
       const response = await axios.post(
         'https://api.amazonalexa.com/v3/events',
@@ -93,7 +93,7 @@ export const handler = async (
               name: correlationToken
                 ? Alexa.DirectiveName.StateReport
                 : Alexa.DirectiveName.ChangeReport,
-              messageId: uuidv4(),
+              messageId: payload.event_id ? payload.event_id : uuidv4(),
               payloadVersion: '3',
               ...(correlationToken ? { correlationToken } : {}),
             },
@@ -115,6 +115,7 @@ export const handler = async (
           },
         }
       )
+      console.log(response)
       Log('Alexa report', _.get(response, 'data'))
       callback()
     } else {

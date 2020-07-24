@@ -153,7 +153,7 @@ namespace Alexa {
 interface Context {
   succeed(response: Alexa.Response | null): void
   fail(response: any): void
-  done(response: any): void
+  done(response?: any): void
   functionVersion: string
   functionName: string
 }

@@ -12,6 +12,7 @@ import * as _ from 'lodash'
 import axios from 'axios'
 import { v4 as uuidv4 } from 'uuid'
 import * as moment from 'moment'
+import { Log } from './lib/log'
 
 const dynamoDB = new DynamoDB.DocumentClient()
 const findUser = (userId: string) => {
@@ -77,7 +78,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: false,
+            retrievable: true,
           },
         })
         break
@@ -93,7 +94,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: false,
+            retrievable: true,
           },
         })
         break
@@ -109,7 +110,7 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: false,
+            retrievable: true,
           },
         })
         break
@@ -125,17 +126,12 @@ const normalizeDeviceCapatibilities = (
               },
             ],
             proactivelyReported: true,
-            retrievable: false,
+            retrievable: true,
           },
         })
         break
     }
   }
-  capabilities.push({
-    type: Alexa.CapacityType.AlexaInterface,
-    interface: Alexa.CapacityInterface.Alexa,
-    version: '3',
-  })
   return capabilities
 }
 const normalizeDevice = (device: IotDevice): Alexa.Device => {
@@ -253,7 +249,10 @@ const reportAlexa = async (device: IotDevice, user: any) => {
         },
       }
     )
-    console.log('Reportado Alexa', { device: deviceNormalized, response })
+    Log('Reportado Alexa', {
+      device: deviceNormalized,
+      response: _.get(response, 'data'),
+    })
   } catch (err) {
     console.log('Falha ao reportar novo device a alexa', err)
   }
