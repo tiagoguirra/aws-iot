@@ -1,127 +1,139 @@
-import {
-  Alexa,
-  ProfileUser,
-  Device,
-  DeviceType,
-  DeviceCategory,
-} from '../interface'
-import { v4 as uuidv4 } from 'uuid'
+import * as Alexa from '../interface/alexa'
 import * as _ from 'lodash'
-import { DynamoDB, AWSError } from 'aws-sdk'
 import { Log } from '../lib/log'
-interface ControllerResponse {
-  name: string
-  value: any
-}
-const dynamoDB = new DynamoDB.DocumentClient()
-const findDevice = (device_id: string): Promise<Device> => {
+import { IotData, AWSError } from 'aws-sdk'
+import { ThingShadowState } from '../interface/requests'
+
+const iotdata = new IotData({ endpoint: process.env.IOT_ENDPOINT })
+const updateStateDevice = (deviceId: string, property: string, value: any) => {
   return new Promise((resolve, reject) => {
-    dynamoDB.get(
-      {
-        TableName: 'iot-devices',
-        Key: {
-          device_id,
-        },
-      },
-      (err: AWSError, data: DynamoDB.DocumentClient.GetItemOutput) => {
+    iotdata
+      .updateThingShadow({
+        payload: JSON.stringify({
+          state: {
+            desired: {
+              [property]: value,
+            },
+          },
+        }),
+        thingName: deviceId,
+      })
+      .send((err: AWSError, data: IotData.UpdateThingShadowResponse) => {
         if (err) {
           reject(err)
         } else {
-          resolve(_.get(data, 'Item') as Device)
+          const payload = JSON.parse(data.payload.toString())
+          Log('UpdateThing', { payload, data })
+          resolve(_.get(payload, ['state', 'desired', property]))
         }
-      }
-    )
+      })
   })
 }
-const saveDeviceEvent = (deviceId: string, capability: string, action: any) => {
+
+const getStateDevice = (deviceId: string): Promise<ThingShadowState> => {
   return new Promise((resolve, reject) => {
-    dynamoDB.put(
+    iotdata.getThingShadow(
       {
-        TableName: 'iot-event',
-        Item: {
-          event_id: uuidv4(),
-          action,
-          capability,
-          device_id: deviceId,
-          createdAt: new Date().toISOString(),
-        },
+        thingName: deviceId,
       },
-      (err: AWSError, data: DynamoDB.DocumentClient.PutItemOutput) => {
+      (err: AWSError, data: IotData.GetThingShadowResponse) => {
         if (err) {
           reject(err)
         } else {
-          resolve(_.get(data, 'Item'))
+          const payload = JSON.parse(data.payload.toString())
+          Log('getThing', { payload, data })
+          resolve({
+            state: _.get(payload, ['state', 'reported']),
+            delta: _.get(payload, ['state', 'delta']),
+            lastReports: _.get(payload, ['metadata', 'reported']),
+            timestamp: _.get(payload, ['timestamp']),
+          })
         }
       }
     )
   })
 }
 const powerControll = async (
-  endpointId: string,
+  deviceId: string,
   action: string
-): Promise<ControllerResponse> => {
-  const device = await findDevice(endpointId)
-  const capabilities = device.capabilities || []
+): Promise<Alexa.ContextProperty> => {
   const value = action === 'TurnOn' ? 'ON' : 'OFF'
-  if (capabilities.includes('power')) {
-    await saveDeviceEvent(device.device_id, 'power', value)
-  }
+  const response = await updateStateDevice(deviceId, 'power', value)
   return {
     name: 'powerState',
-    value: value,
+    value: response,
+    namespace: Alexa.DirectiveName.PowerController,
+    timeOfSample: new Date().toISOString(),
+    uncertaintyInMilliseconds: 6000,
   }
 }
-const brightnessControll = async (endpointId: string, value: number) => {
-  const device = await findDevice(endpointId)
-  const capabilities = device.capabilities || []
-  if (capabilities.includes('brightness')) {
-    await saveDeviceEvent(device.device_id, 'brightness', value)
-  }
+const brightnessControll = async (
+  deviceId: string,
+  value: number
+): Promise<Alexa.ContextProperty> => {
+  const response = await updateStateDevice(deviceId, 'brightness', value)
   return {
     name: 'brightness',
-    value: value,
+    value: response,
+    namespace: Alexa.DirectiveName.BrightnessController,
+    timeOfSample: new Date().toISOString(),
+    uncertaintyInMilliseconds: 6000,
   }
 }
 const colorControll = async (
-  endpointId: string,
+  deviceId: string,
   value: { hue: number; saturation: number; brightness: number }
-) => {
-  const device = await findDevice(endpointId)
-  const capabilities = device.capabilities || []
-  if (capabilities.includes('color')) {
-    await saveDeviceEvent(device.device_id, 'color', value)
-  }
+): Promise<Alexa.ContextProperty> => {
+  const response = await updateStateDevice(deviceId, 'color', value)
   return {
     name: 'color',
-    value: value,
+    value: response,
+    namespace: Alexa.DirectiveName.ColorController,
+    timeOfSample: new Date().toISOString(),
+    uncertaintyInMilliseconds: 6000,
   }
 }
 const lockControll = async (
-  endpointId: string,
+  deviceId: string,
   action: string
-): Promise<ControllerResponse> => {
-  const device = await findDevice(endpointId)
-  const capabilities = device.capabilities || []
-  const value = action === 'Unlock' ? 'UNLOCK' : 'LOCKED'
-  if (capabilities.includes('lock')) {
-    await saveDeviceEvent(device.device_id, 'lock', value)
-  }
+): Promise<Alexa.ContextProperty> => {
+  const value = action === 'Unlock' ? 'UNLOCKED' : 'LOCKED'
+  const response = await updateStateDevice(deviceId, 'lock', value)
   return {
     name: 'lockState',
-    value: value,
+    value: response,
+    namespace: Alexa.DirectiveName.LockController,
+    timeOfSample: new Date().toISOString(),
+    uncertaintyInMilliseconds: 6000,
   }
 }
 const reportControll = async (
-  endpointId: string,
-  correlation: string
-): Promise<void> => {
-  const device = await findDevice(endpointId)
-  await saveDeviceEvent(device.device_id, 'state', correlation)
+  deviceId: string
+): Promise<Alexa.ContextProperty[]> => {
+  const stateThing = await getStateDevice(deviceId)
+  const properties: Alexa.ContextProperty[] = []
+  for (let key in stateThing.state) {
+    const itemName = _.get(Alexa.PropertyNameMap, key)
+    const lastReport = _.get(stateThing, ['lastReports', key, 'timestamp'], 0)
+    const diffTime = stateThing.timestamp - lastReport
+    Log('Timing', { diffTime, lastReport, timestamp: stateThing.timestamp })
+    if (itemName && diffTime < 600) {
+      properties.push({
+        namespace: _.get(
+          Alexa.PropertyNamespaceMap,
+          key,
+          Alexa.PropertyNamespaceMap.power
+        ),
+        name: itemName,
+        value: stateThing.state[key],
+        timeOfSample: new Date().toISOString(),
+        uncertaintyInMilliseconds: 6000,
+      })
+    }
+  }
+  return properties
 }
-export default (
-  payload: Alexa.Interface,
-  profile: ProfileUser
-): Promise<Alexa.Response> => {
+export default (payload: Alexa.Interface): Promise<Alexa.Response> => {
   return new Promise(async (resolve, reject) => {
     try {
       const {
@@ -145,54 +157,46 @@ export default (
       }
       const endpointId: string = payload.directive.endpoint.endpointId
 
-      let result: ControllerResponse
+      let propertiesResponse:
+        | Alexa.ContextProperty
+        | Alexa.ContextProperty[] = []
       switch (namespace) {
         case Alexa.DirectiveName.PowerController:
-          result = await powerControll(endpointId, name)
+          propertiesResponse = await powerControll(endpointId, name)
           break
         case Alexa.DirectiveName.BrightnessController:
-          result = await brightnessControll(
+          propertiesResponse = await brightnessControll(
             endpointId,
             _.get(payload, 'directive.payload.brightness', 0)
           )
           break
         case Alexa.DirectiveName.ColorController:
-          result = await colorControll(
+          propertiesResponse = await colorControll(
             endpointId,
             _.get(payload, 'directive.payload.color')
           )
           break
         case Alexa.DirectiveName.LockController:
-          result = await lockControll(endpointId, name)
+          propertiesResponse = await lockControll(endpointId, name)
           break
         case Alexa.DirectiveName.Alexa:
           if (name === Alexa.DirectiveName.ReportState) {
-            await reportControll(endpointId, correlationToken)
-            return resolve()
+            propertiesResponse = await reportControll(endpointId)
+            eventResponse.header.name = Alexa.DirectiveName.StateReport
           }
           break
         default:
       }
-      let timeOfSample = new Date().toISOString()
       resolve({
         event: eventResponse,
         context: {
-          properties: [
-            {
-              ...result,
-              namespace,
-              timeOfSample,
-              uncertaintyInMilliseconds: 6000,
-            },
-          ],
+          properties: Array.isArray(propertiesResponse)
+            ? propertiesResponse
+            : [propertiesResponse],
         },
       })
     } catch (err) {
-      Log('Falha ao controlar device', err)
-      reject({
-        message: err.message,
-        code: err.code,
-      })
+      reject(err)
     }
   })
 }

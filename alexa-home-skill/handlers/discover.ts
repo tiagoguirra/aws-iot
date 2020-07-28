@@ -1,143 +1,64 @@
-import {
-  Alexa,
-  ProfileUser,
-  Device,
-  DeviceType,
-  DeviceCategory,
-} from '../interface'
+import * as Alexa from '../interface/alexa'
 import { v4 as uuidv4 } from 'uuid'
 import * as _ from 'lodash'
-import { DynamoDB, AWSError } from 'aws-sdk'
+import { buscaDevices } from '../database/database'
+import { DeviceDB, ProfileUser } from '../interface/database'
+import { findUser } from './authorization'
 
-const buscaDevices = (
-  userId: string
-): Promise<DynamoDB.DocumentClient.QueryOutput> => {
-  return new Promise((resolve, reject) => {
-    const dynamoDB = new DynamoDB.DocumentClient()
-    dynamoDB.query(
-      {
-        TableName: 'iot-devices',
-        IndexName: 'user_id-index',
-        KeyConditionExpression: '#id = :id',
-        ExpressionAttributeNames: {
-          '#id': 'user_id',
-        },
-        ExpressionAttributeValues: {
-          ':id': userId,
-        },
-      },
-      (err: AWSError, data: DynamoDB.DocumentClient.QueryOutput) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(data)
-        }
-      }
-    )
-  })
-}
-
-const normalizeDeviceCapatibilities = (
-  device: Device
-): Alexa.DeviceCapacity[] => {
-  const capabilities: Alexa.DeviceCapacity[] = []
-
-  for (const i in device.capabilities || []) {
-    const item = device.capabilities[i]
-    switch (item) {
-      case 'power':
-        capabilities.push({
-          interface: Alexa.CapacityInterface.PowerController,
-          type: Alexa.CapacityType.AlexaInterface,
-          version: '3',
-          properties: {
-            supported: [
-              {
-                name: Alexa.CapacitySupport.powerState,
-              },
-            ],
-            proactivelyReported: true,
-            retrievable: false,
-          },
-        })
-        break
-      case 'brightness':
-        capabilities.push({
-          interface: Alexa.CapacityInterface.BrightnessController,
-          type: Alexa.CapacityType.AlexaInterface,
-          version: '3',
-          properties: {
-            supported: [
-              {
-                name: Alexa.CapacitySupport.brightness,
-              },
-            ],
-            proactivelyReported: true,
-            retrievable: false,
-          },
-        })
-        break
-      case 'color':
-        capabilities.push({
-          interface: Alexa.CapacityInterface.ColorController,
-          type: Alexa.CapacityType.AlexaInterface,
-          version: '3',
-          properties: {
-            supported: [
-              {
-                name: Alexa.CapacitySupport.color,
-              },
-            ],
-            proactivelyReported: true,
-            retrievable: false,
-          },
-        })
-        break
-      case 'lock':
-        capabilities.push({
-          interface: Alexa.CapacityInterface.LockController,
-          type: Alexa.CapacityType.AlexaInterface,
-          version: '3',
-          properties: {
-            supported: [
-              {
-                name: Alexa.CapacitySupport.lockState,
-              },
-            ],
-            proactivelyReported: true,
-            retrievable: false,
-          },
-        })
-        break
-    }
-  }
-  capabilities.push({
-    type: Alexa.CapacityType.AlexaInterface,
-    interface: Alexa.CapacityInterface.Alexa,
-    version: '3',
-  })
-  return capabilities
-}
-const normalizeDevice = (device: Device): Alexa.Device => {
-  const category = _.get(DeviceCategory, device.type, DeviceCategory.SWITCH)
-  return {
+const normalizeDevice = (device: DeviceDB): Alexa.Device => {
+  const category = _.get(
+    Alexa.DeviceCategoryMap,
+    device.device_template,
+    Alexa.DeviceCategoryMap.switch
+  )
+  const deviceEndpoint = {
     endpointId: device.device_id,
     manufacturerName: 'Guirra DIY',
     friendlyName: device.name,
     description: 'Smart Home DIY',
     displayCategories: [category],
-    capabilities: normalizeDeviceCapatibilities(device),
+    capabilities: [],
   }
+  for (let key in device.capabilities) {
+    const prop = device.capabilities[key]
+    deviceEndpoint.capabilities.push({
+      interface: _.get(
+        Alexa.PropertyNamespaceMap,
+        prop,
+        Alexa.PropertyNamespaceMap.power
+      ),
+      type: Alexa.CapacityType.AlexaInterface,
+      version: '3',
+      properties: {
+        supported: [
+          {
+            name: _.get(
+              Alexa.PropertyNamespaceMap,
+              prop,
+              Alexa.PropertyNamespaceMap.power
+            ),
+          },
+        ],
+        proactivelyReported: true,
+        retrievable: true,
+      },
+    })
+  }
+  return deviceEndpoint
 }
-export default (
-  payload: Alexa.Interface,
-  profile: ProfileUser
-): Promise<Alexa.Response> => {
+export default (payload: Alexa.Interface): Promise<Alexa.Response> => {
   return new Promise(async (resolve, reject) => {
     try {
+      const profile: ProfileUser = await findUser(
+        _.get(
+          payload,
+          'directive.endpoint.scope.token',
+          _.get(payload, 'directive.payload.scope.token')
+        )
+      )
       const devices = await buscaDevices(profile.user_id)
       const deviceMap: Alexa.Device[] = devices.Items.map(device =>
-        normalizeDevice(device as Device)
+        normalizeDevice(device as DeviceDB)
       )
       const response: Alexa.Response = {
         event: {
@@ -154,11 +75,7 @@ export default (
       }
       resolve(response)
     } catch (err) {
-      console.log('Erro find devices', err)
-      reject({
-        message: err.message,
-        code: err.code,
-      })
+      reject(err)
     }
   })
 }

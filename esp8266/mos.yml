@@ -21,12 +21,10 @@ filesystem:
   - fs
 
 config_schema:
-  - ['mqtt.pub', 's', 'iot/response', { title: 'Publish topic' }]
-  - ['mqtt.sub', 's', 'iot/receive', { title: 'Subscribe topic' }]
-  - ['mqtt.entry', 's', 'iot/register', { title: 'Register topic' }]
-  - ['mqtt.device_type', 's', 'LIGHT', { title: 'Device type' }]
-  - ['device.id', '0002']
-  - ['device.password', '0002']
+  - ['device.id', '0005']
+  - ['device.password', '0005']
+  - ['device_type', 's', 'light', { title: 'Device type' }]
+  - ['mqtt_events', 's', 'iot/response', { title: 'Mqtt events' }]
 
 libs:
   - origin: https://github.com/mongoose-os-libs/aws

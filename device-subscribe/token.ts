@@ -1,9 +1,10 @@
-import { UserToken } from './interface'
+import { UserToken } from './interface/db'
 import { DynamoDB, AWSError } from 'aws-sdk'
 import * as _ from 'lodash'
 import axios from 'axios'
 import * as moment from 'moment'
 import { Log } from './lib/log'
+import { findTokens } from './database'
 
 const dynamoDB = new DynamoDB.DocumentClient()
 const tokenIsValid = (token: UserToken): boolean => {
@@ -54,26 +55,6 @@ const updateTokens = (token: UserToken): Promise<UserToken> => {
         console.log('Falha ao gerar tokens de acesso usuário', err)
         reject(err)
       })
-  })
-}
-const findTokens = (userId: string): Promise<UserToken> => {
-  return new Promise((resolve, reject) => {
-    dynamoDB.get(
-      {
-        TableName: 'iot-users-tokens',
-        Key: {
-          user_id: userId,
-        },
-      },
-      (err: AWSError, data: DynamoDB.DocumentClient.GetItemOutput) => {
-        if (err) {
-          console.log('Falha ao buscar tokens do usuário', err)
-          reject(err)
-        } else {
-          resolve(_.get(data, 'Item') as UserToken)
-        }
-      }
-    )
   })
 }
 

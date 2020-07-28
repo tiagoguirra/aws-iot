@@ -1,10 +1,10 @@
-import { Alexa, ProfileUser } from '../interface'
+import * as Alexa from '../interface/alexa'
 import { v4 as uuidv4 } from 'uuid'
 import * as _ from 'lodash'
 import axios from 'axios'
-import { DynamoDB, AWSError } from 'aws-sdk'
+import { saveTokens, saveUser } from '../database/database'
+import { ProfileUser } from '../interface/database'
 
-const dynamoDB = new DynamoDB.DocumentClient()
 export const findUser = (token: string): Promise<ProfileUser> => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -23,7 +23,8 @@ export const findUser = (token: string): Promise<ProfileUser> => {
     }
   })
 }
-const saveTokens = (code: string, userId: string) => {
+
+const createAndSaveTokens = (code: string, userId: string) => {
   return new Promise(async (resolve, reject) => {
     axios
       .post('https://api.amazon.com/auth/o2/token', {
@@ -32,31 +33,9 @@ const saveTokens = (code: string, userId: string) => {
         client_id: process.env.CLIENT_ID,
         client_secret: process.env.CLIENT_SECRET,
       })
-      .then(data => {
-        dynamoDB.put(
-          {
-            TableName: 'iot-users-tokens',
-            Item: {
-              code,
-              access_token: _.get(data, 'data.access_token'),
-              refresh_token: _.get(data, 'data.refresh_token'),
-              expires_in: _.get(data, 'data.expires_in'),
-              token_type: _.get(data, 'data.token_type'),
-              created_at: new Date().toISOString(),
-              user_id: userId,
-            },
-          },
-          (err: AWSError, data: DynamoDB.DocumentClient.PutItemOutput) => {
-            if (err) {
-              reject(err)
-            } else {
-              resolve(data)
-            }
-          }
-        )
-      })
+      .then(data => saveTokens(code, userId, _.get(data, 'data')))
+      .then(data => resolve(data))
       .catch(err => {
-        console.log('Falha ao gerar tokens de acesso usuário', err)
         reject(err)
       })
   })
@@ -68,44 +47,21 @@ export default (payload: Alexa.Interface): Promise<Alexa.Response> => {
         _.get(payload, 'directive.payload.grantee.token')
       )
       const code = _.get(payload, 'directive.payload.grant.code')
-      await saveTokens(code, profile.user_id)
-      dynamoDB.put(
-        {
-          TableName: 'iot-users',
-          Item: {
-            email: profile.email,
-            name: profile.name,
-            user_id: profile.user_id,
-            updatedAt: new Date().toISOString(),
+      await createAndSaveTokens(code, profile.user_id)
+      await saveUser(profile)
+      resolve({
+        event: {
+          header: {
+            namespace: Alexa.DirectiveName.Authorization,
+            name: Alexa.DirectiveName.AcceptGrantResponse,
+            messageId: uuidv4(),
+            payloadVersion: '3',
           },
+          payload: {},
         },
-        (err: AWSError, data: DynamoDB.DocumentClient.PutItemOutput) => {
-          if (err) {
-            reject({
-              message: err.message,
-              code: err.code,
-            })
-          } else {
-            resolve({
-              event: {
-                header: {
-                  namespace: Alexa.DirectiveName.Authorization,
-                  name: Alexa.DirectiveName.AcceptGrantResponse,
-                  messageId: uuidv4(),
-                  payloadVersion: '3',
-                },
-                payload: {},
-              },
-            })
-          }
-        }
-      )
-    } catch (err) {
-      console.log(err)
-      reject({
-        message: _.get(err, 'response.message', _.get(err, 'message')),
-        code: err.status,
       })
+    } catch (err) {
+      reject(err)
     }
   })
 }
