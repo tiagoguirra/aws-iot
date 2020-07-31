@@ -1,5 +1,6 @@
 {
-  "name": "Alexa-home-skill",
+  "name": "alexa-home-skill",
+  "author": "Tiago Guirra <tiagobg_bg@hotmail.com>",
   "version": "1.0.4",
   "license": "MIT",
   "main": "index.js",

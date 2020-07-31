@@ -12,6 +12,8 @@ export enum EventDeviceInterface {
 
 export interface EventRegister extends EventBase {
   event: EventDeviceInterface.registerDevice
+  device_name?: string
+  user_id: string
   properties: {
     power: boolean
     color: boolean

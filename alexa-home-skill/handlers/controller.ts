@@ -3,17 +3,17 @@ import * as _ from 'lodash'
 import { Log } from '../lib/log'
 import { IotData, AWSError } from 'aws-sdk'
 import { ThingShadowState } from '../interface/requests'
+import { hsbToRgb, rgbToHsb } from '../helpers/color'
+import { findDevice } from '../database/database'
 
 const iotdata = new IotData({ endpoint: process.env.IOT_ENDPOINT })
-const updateStateDevice = (deviceId: string, property: string, value: any) => {
+const updateStateDevice = (deviceId: string, value: any) => {
   return new Promise((resolve, reject) => {
     iotdata
       .updateThingShadow({
         payload: JSON.stringify({
           state: {
-            desired: {
-              [property]: value,
-            },
+            desired: value,
           },
         }),
         thingName: deviceId,
@@ -24,7 +24,7 @@ const updateStateDevice = (deviceId: string, property: string, value: any) => {
         } else {
           const payload = JSON.parse(data.payload.toString())
           Log('UpdateThing', { payload, data })
-          resolve(_.get(payload, ['state', 'desired', property]))
+          resolve(_.get(payload, ['state', 'desired']))
         }
       })
   })
@@ -58,10 +58,10 @@ const powerControll = async (
   action: string
 ): Promise<Alexa.ContextProperty> => {
   const value = action === 'TurnOn' ? 'ON' : 'OFF'
-  const response = await updateStateDevice(deviceId, 'power', value)
+  const response = await updateStateDevice(deviceId, { power: value })
   return {
     name: 'powerState',
-    value: response,
+    value: _.get(response, 'power'),
     namespace: Alexa.DirectiveName.PowerController,
     timeOfSample: new Date().toISOString(),
     uncertaintyInMilliseconds: 6000,
@@ -71,23 +71,25 @@ const brightnessControll = async (
   deviceId: string,
   value: number
 ): Promise<Alexa.ContextProperty> => {
-  const response = await updateStateDevice(deviceId, 'brightness', value)
+  const response = await updateStateDevice(deviceId, { brightness: value })
   return {
     name: 'brightness',
-    value: response,
+    value: _.get(response, 'brightness'),
     namespace: Alexa.DirectiveName.BrightnessController,
     timeOfSample: new Date().toISOString(),
     uncertaintyInMilliseconds: 6000,
   }
 }
+
 const colorControll = async (
   deviceId: string,
   value: { hue: number; saturation: number; brightness: number }
 ): Promise<Alexa.ContextProperty> => {
-  const response = await updateStateDevice(deviceId, 'color', value)
+  const rgb = hsbToRgb(value.hue, value.saturation, value.brightness)
+  await updateStateDevice(deviceId, rgb)
   return {
     name: 'color',
-    value: response,
+    value,
     namespace: Alexa.DirectiveName.ColorController,
     timeOfSample: new Date().toISOString(),
     uncertaintyInMilliseconds: 6000,
@@ -98,34 +100,53 @@ const lockControll = async (
   action: string
 ): Promise<Alexa.ContextProperty> => {
   const value = action === 'Unlock' ? 'UNLOCKED' : 'LOCKED'
-  const response = await updateStateDevice(deviceId, 'lock', value)
+  const response = await updateStateDevice(deviceId, { lock: value })
   return {
     name: 'lockState',
-    value: response,
+    value: _.get(response, 'lock'),
     namespace: Alexa.DirectiveName.LockController,
     timeOfSample: new Date().toISOString(),
     uncertaintyInMilliseconds: 6000,
+  }
+}
+const reportTranformState = (state: any, propertyName: string) => {
+  switch (propertyName) {
+    case 'color':
+      return rgbToHsb(
+        _.get(state, 'red', 0),
+        _.get(state, 'green', 0),
+        _.get(state, 'blue', 0)
+      )
+    case 'power':
+      return _.get(state, 'power', 'OFF')
+    case 'lock':
+      return _.get(state, 'lock', 'UNLOCKED')
+    default:
+      return _.get(state, propertyName, state)
   }
 }
 const reportControll = async (
   deviceId: string
 ): Promise<Alexa.ContextProperty[]> => {
   const stateThing = await getStateDevice(deviceId)
+  const device = await findDevice(deviceId)
   const properties: Alexa.ContextProperty[] = []
-  for (let key in stateThing.state) {
-    const itemName = _.get(Alexa.PropertyNameMap, key)
-    const lastReport = _.get(stateThing, ['lastReports', key, 'timestamp'], 0)
-    const diffTime = stateThing.timestamp - lastReport
-    Log('Timing', { diffTime, lastReport, timestamp: stateThing.timestamp })
-    if (itemName && diffTime < 600) {
+  for (let i in device.capabilities) {
+    const item = device.capabilities[i]
+    Log('Get device property', item)
+    const itemName = _.get(Alexa.PropertyNameMap, item)
+    // const lastReport = _.get(stateThing, ['lastReports', key, 'timestamp'], 0)
+    // const diffTime = stateThing.timestamp - lastReport
+    // Log('Timing', { diffTime, lastReport, timestamp: stateThing.timestamp })
+    if (itemName) {
       properties.push({
         namespace: _.get(
           Alexa.PropertyNamespaceMap,
-          key,
+          item,
           Alexa.PropertyNamespaceMap.power
         ),
         name: itemName,
-        value: stateThing.state[key],
+        value: reportTranformState(stateThing.state, item),
         timeOfSample: new Date().toISOString(),
         uncertaintyInMilliseconds: 6000,
       })

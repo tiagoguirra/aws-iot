@@ -38,10 +38,10 @@ const reportAlexa = async (payload: any, tokens: UserToken) => {
 }
 
 const handlerRegister = async (payload: EventRegister) => {
-  const user = await findUser('amzn1.account.AH7PAVEKBJHYA47ZFL3HUOHJSQ5A')
+  const user = await findUser(payload.user_id)
   const device: DeviceDB = {
     device_id: payload.device_id,
-    name: 'Device ' + payload.device_id,
+    name: payload.device_name || 'Device ' + payload.device_id,
     topic_events: payload.topic_events,
     device_template: payload.device_template,
     user_id: user.user_id,

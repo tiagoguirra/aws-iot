@@ -1,5 +1,6 @@
 {
-  "name": "iot-device-register",
+  "name": "iot-device-subscribe",
+  "author": "Tiago Guirra <tiagobg_bg@hotmail.com>",
   "version": "1.0.4",
   "license": "MIT",
   "main": "index.js",
