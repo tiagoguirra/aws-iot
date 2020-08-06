@@ -144,6 +144,7 @@ export enum CapacityInterface {
   LockController = 'Alexa.LockController',
   Alexa = 'Alexa',
   ContactSensor = 'Alexa.ContactSensor',
+  EndpointHealth = 'Alexa.EndpointHealth',
 }
 export enum CapacitySupport {
   powerState = 'powerState',
@@ -152,4 +153,5 @@ export enum CapacitySupport {
   lockState = 'lockState',
   detectionState = 'detectionState',
   temperature = 'temperature',
+  connectivity = 'connectivity',
 }

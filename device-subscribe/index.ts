@@ -60,7 +60,22 @@ const handlerRegister = async (payload: EventRegister) => {
     friendlyName: device.name,
     description: 'Smart Home DIY',
     displayCategories: [category],
-    capabilities: [],
+    capabilities: [
+      {
+        type: Alexa.CapacityType.AlexaInterface,
+        interface: Alexa.CapacityInterface.EndpointHealth,
+        version: '3',
+        properties: {
+          supported: [
+            {
+              name: Alexa.CapacitySupport.connectivity,
+            },
+          ],
+          proactivelyReported: true,
+          retrievable: true,
+        },
+      },
+    ],
   }
   for (let key in payload.properties) {
     const prop = payload.properties[key]

@@ -28,7 +28,7 @@ const normalizeDevice = (device: DeviceDB): Alexa.Device => {
               name: Alexa.CapacitySupport.connectivity,
             },
           ],
-          proactivelyReported: false,
+          proactivelyReported: true,
           retrievable: true,
         },
       },
