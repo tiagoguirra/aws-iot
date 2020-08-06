@@ -34,12 +34,15 @@ export enum DirectiveName {
   LockController = 'Alexa.LockController',
   Authorization = 'Alexa.Authorization',
   ContactSensor = 'Alexa.ContactSensor',
+  TemperatureSensor = 'Alexa.TemperatureSensor',
+  EndpointHealth = 'Alexa.EndpointHealth',
   Alexa = 'Alexa',
   Discovery = 'Alexa.Discovery',
   Response = 'Response',
   AddOrUpdateReport = 'AddOrUpdateReport',
   ReportState = 'ReportState',
   StateReport = 'StateReport',
+  connectivity = 'connectivity',
 }
 
 export type Payload = PayloadAuthorization | { [name: string]: any }
@@ -144,6 +147,8 @@ export enum CapacityInterface {
   LockController = 'Alexa.LockController',
   Alexa = 'Alexa',
   ContactSensor = 'Alexa.ContactSensor',
+  TemperatureSensor = 'Alexa.TemperatureSensor',
+  EndpointHealth = 'Alexa.EndpointHealth',
 }
 export enum CapacitySupport {
   powerState = 'powerState',
@@ -151,6 +156,8 @@ export enum CapacitySupport {
   color = 'color',
   lockState = 'lockState',
   detectionState = 'detectionState',
+  temperature = 'temperature',
+  connectivity = 'connectivity',
 }
 
 export enum PropertyNamespaceMap {
@@ -159,6 +166,7 @@ export enum PropertyNamespaceMap {
   'lock' = DirectiveName.LockController,
   'brightness' = DirectiveName.BrightnessController,
   'sensorContact' = DirectiveName.ContactSensor,
+  'sensorTemperature' = DirectiveName.TemperatureSensor,
 }
 export enum PropertyNameMap {
   'power' = CapacitySupport.powerState,
@@ -166,6 +174,7 @@ export enum PropertyNameMap {
   'lock' = CapacitySupport.lockState,
   'brightness' = CapacitySupport.brightness,
   'sensorContact' = CapacitySupport.detectionState,
+  'sensorTemperature' = CapacitySupport.temperature,
 }
 
 export enum DeviceCategoryMap {
@@ -174,4 +183,6 @@ export enum DeviceCategoryMap {
   light_brightness = 'LIGHT',
   smartlock = 'SMARTLOCK',
   switch = 'SWITCH',
+  sensorContact = 'CONTACT_SENSOR',
+  sensorTemperature = 'TEMPERATURE_SENSOR',
 }

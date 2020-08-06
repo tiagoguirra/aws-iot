@@ -17,7 +17,22 @@ const normalizeDevice = (device: DeviceDB): Alexa.Device => {
     friendlyName: device.name,
     description: 'Smart Home DIY',
     displayCategories: [category],
-    capabilities: [],
+    capabilities: [
+      {
+        type: Alexa.CapacityType.AlexaInterface,
+        interface: Alexa.CapacityInterface.EndpointHealth,
+        version: '3',
+        properties: {
+          supported: [
+            {
+              name: Alexa.CapacitySupport.connectivity,
+            },
+          ],
+          proactivelyReported: false,
+          retrievable: true,
+        },
+      },
+    ],
   }
   for (let key in device.capabilities) {
     const prop = device.capabilities[key]

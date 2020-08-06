@@ -17,6 +17,7 @@ import { getAlexaCredentials } from './token'
 import axios from 'axios'
 import { Log } from './lib/log'
 import { findUser, saveDevice, findDevice } from './database'
+import { rgbToHsb } from './helpers/color'
 
 const reportAlexa = async (payload: any, tokens: UserToken) => {
   const response = await axios.post(
@@ -102,6 +103,31 @@ const handlerRegister = async (payload: EventRegister) => {
   }
   await reportAlexa(payloadAlexa, tokens)
 }
+
+const reportTranformState = (state: any, propertyName: string) => {
+  switch (propertyName) {
+    case 'color':
+      return rgbToHsb(
+        _.get(state, 'red', 0),
+        _.get(state, 'green', 0),
+        _.get(state, 'blue', 0)
+      )
+    case 'power':
+      return _.get(state, 'power', 'OFF')
+    case 'lock':
+      return _.get(state, 'lock', 'UNLOCKED')
+    case 'sensorContact':
+      return _.get(state, 'sensorContact', 'NOT_DETECTED')
+    case 'sensorTemperature':
+      return {
+        value: _.get(state, 'sensorTemperature.value', 0),
+        scale: _.get(state, 'sensorTemperature.scale', 'CELSIUS'),
+      }
+    default:
+      return _.get(state, propertyName, state)
+  }
+}
+
 const handlerPhysicalInteraction = async (
   payload: EventPhysicalInteraction
 ) => {
@@ -113,7 +139,7 @@ const handlerPhysicalInteraction = async (
       PropertyNamespaceMap.power
     ),
     name: _.get(PropertyNameMap, payload.property, PropertyNameMap.power),
-    value: _.get(payload, ['state', payload.property], ''),
+    value: reportTranformState(_.get(payload, 'state', {}), payload.property),
     timeOfSample: new Date().toISOString(),
     uncertaintyInMilliseconds: 0,
   }
@@ -121,11 +147,10 @@ const handlerPhysicalInteraction = async (
   const propertiesNotChange = []
   for (let key in payload.state) {
     if (key !== payload.property) {
-      const prop = payload.state[key]
       propertiesNotChange.push({
         namespace: _.get(PropertyNamespaceMap, key, PropertyNamespaceMap.power),
         name: _.get(PropertyNameMap, key, PropertyNameMap.power),
-        value: prop,
+        value: reportTranformState(_.get(payload, 'state', {}), key),
         timeOfSample: new Date().toISOString(),
         uncertaintyInMilliseconds: 6000,
       })

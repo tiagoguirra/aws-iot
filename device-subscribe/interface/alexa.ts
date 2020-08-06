@@ -34,6 +34,7 @@ export enum DirectiveName {
   LockController = 'Alexa.LockController',
   Authorization = 'Alexa.Authorization',
   ContactSensor = 'Alexa.ContactSensor',
+  TemperatureSensor = 'Alexa.TemperatureSensor',
   Alexa = 'Alexa',
   Discovery = 'Alexa.Discovery',
   Response = 'Response',
@@ -150,4 +151,5 @@ export enum CapacitySupport {
   color = 'color',
   lockState = 'lockState',
   detectionState = 'detectionState',
+  temperature = 'temperature',
 }

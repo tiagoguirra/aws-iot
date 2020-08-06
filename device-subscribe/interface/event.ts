@@ -59,6 +59,7 @@ export enum PropertyNamespaceMap {
   'lock' = DirectiveName.LockController,
   'brightness' = DirectiveName.BrightnessController,
   'sensorContact' = DirectiveName.ContactSensor,
+  'sensorTemperature' = DirectiveName.TemperatureSensor,
 }
 export enum PropertyNameMap {
   'power' = CapacitySupport.powerState,
@@ -66,6 +67,7 @@ export enum PropertyNameMap {
   'lock' = CapacitySupport.lockState,
   'brightness' = CapacitySupport.brightness,
   'sensorContact' = CapacitySupport.detectionState,
+  'sensorTemperature' = CapacitySupport.temperature,
 }
 
 export enum DeviceCategoryMap {
@@ -75,6 +77,7 @@ export enum DeviceCategoryMap {
   smartlock = 'SMARTLOCK',
   switch = 'SWITCH',
   sensorContact = 'CONTACT_SENSOR',
+  sensorTemperature = 'TEMPERATURE_SENSOR',
 }
 export interface LambdaContext {
   succeed(response: any): void

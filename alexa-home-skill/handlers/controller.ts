@@ -123,6 +123,11 @@ const reportTranformState = (state: any, propertyName: string) => {
       return _.get(state, 'lock', 'UNLOCKED')
     case 'sensorContact':
       return _.get(state, 'sensorContact', 'NOT_DETECTED')
+    case 'sensorTemperature':
+      return {
+        value: _.get(state, 'sensorTemperature.value', 0),
+        scale: _.get(state, 'sensorTemperature.scale', 'CELSIUS'),
+      }
     default:
       return _.get(state, propertyName, state)
   }
@@ -133,13 +138,27 @@ const reportControll = async (
   const stateThing = await getStateDevice(deviceId)
   const device = await findDevice(deviceId)
   const properties: Alexa.ContextProperty[] = []
+
+  const lastReport = _.get(
+    stateThing,
+    ['lastReports', 'config', 'user_id', 'timestamp'],
+    0
+  )
+  const diffTime = stateThing.timestamp - lastReport
+  Log('Timing', { diffTime, lastReport, timestamp: stateThing.timestamp })
+  properties.push({
+    namespace: Alexa.DirectiveName.EndpointHealth,
+    name: Alexa.DirectiveName.connectivity,
+    timeOfSample: new Date().toISOString(),
+    uncertaintyInMilliseconds: 0,
+    value: {
+      value: diffTime > 6000 ? 'UNREACHABLE' : 'OK',
+    },
+  })
   for (let i in device.capabilities) {
     const item = device.capabilities[i]
     Log('Get device property', item)
     const itemName = _.get(Alexa.PropertyNameMap, item)
-    // const lastReport = _.get(stateThing, ['lastReports', key, 'timestamp'], 0)
-    // const diffTime = stateThing.timestamp - lastReport
-    // Log('Timing', { diffTime, lastReport, timestamp: stateThing.timestamp })
     if (itemName) {
       properties.push({
         namespace: _.get(
