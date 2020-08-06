@@ -113,10 +113,11 @@ const handlerPhysicalInteraction = async (
       PropertyNamespaceMap.power
     ),
     name: _.get(PropertyNameMap, payload.property, PropertyNameMap.power),
-    value: _.get(payload, payload.property, 'power'),
+    value: _.get(payload, ['state', payload.property], ''),
     timeOfSample: new Date().toISOString(),
     uncertaintyInMilliseconds: 0,
   }
+  Log('Value change', _.get(payload, ['state', payload.property], ''))
   const propertiesNotChange = []
   for (let key in payload.state) {
     if (key !== payload.property) {
@@ -136,7 +137,7 @@ const handlerPhysicalInteraction = async (
       header: {
         namespace: Alexa.DirectiveName.Alexa,
         name: Alexa.DirectiveName.ChangeReport,
-        messageId: uuidv4()(),
+        messageId: uuidv4(),
         payloadVersion: '3',
       },
       endpoint: {

@@ -33,12 +33,13 @@ export enum DirectiveName {
   ColorController = 'Alexa.ColorController',
   LockController = 'Alexa.LockController',
   Authorization = 'Alexa.Authorization',
+  ContactSensor = 'Alexa.ContactSensor',
   Alexa = 'Alexa',
   Discovery = 'Alexa.Discovery',
   Response = 'Response',
   AddOrUpdateReport = 'AddOrUpdateReport',
   ReportState = 'ReportState',
-  StateReport = 'StateReport'
+  StateReport = 'StateReport',
 }
 
 export type Payload = PayloadAuthorization | { [name: string]: any }
@@ -142,12 +143,14 @@ export enum CapacityInterface {
   ColorController = 'Alexa.ColorController',
   LockController = 'Alexa.LockController',
   Alexa = 'Alexa',
+  ContactSensor = 'Alexa.ContactSensor',
 }
 export enum CapacitySupport {
   powerState = 'powerState',
   brightness = 'brightness',
   color = 'color',
   lockState = 'lockState',
+  detectionState = 'detectionState',
 }
 
 export enum PropertyNamespaceMap {
@@ -155,12 +158,14 @@ export enum PropertyNamespaceMap {
   'color' = DirectiveName.ColorController,
   'lock' = DirectiveName.LockController,
   'brightness' = DirectiveName.BrightnessController,
+  'sensorContact' = DirectiveName.ContactSensor,
 }
 export enum PropertyNameMap {
   'power' = CapacitySupport.powerState,
   'color' = CapacitySupport.color,
   'lock' = CapacitySupport.lockState,
   'brightness' = CapacitySupport.brightness,
+  'sensorContact' = CapacitySupport.detectionState,
 }
 
 export enum DeviceCategoryMap {

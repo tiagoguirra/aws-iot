@@ -33,6 +33,7 @@ export enum DirectiveName {
   ColorController = 'Alexa.ColorController',
   LockController = 'Alexa.LockController',
   Authorization = 'Alexa.Authorization',
+  ContactSensor = 'Alexa.ContactSensor',
   Alexa = 'Alexa',
   Discovery = 'Alexa.Discovery',
   Response = 'Response',
@@ -141,10 +142,12 @@ export enum CapacityInterface {
   ColorController = 'Alexa.ColorController',
   LockController = 'Alexa.LockController',
   Alexa = 'Alexa',
+  ContactSensor = 'Alexa.ContactSensor',
 }
 export enum CapacitySupport {
   powerState = 'powerState',
   brightness = 'brightness',
   color = 'color',
   lockState = 'lockState',
+  detectionState = 'detectionState',
 }

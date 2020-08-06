@@ -121,6 +121,8 @@ const reportTranformState = (state: any, propertyName: string) => {
       return _.get(state, 'power', 'OFF')
     case 'lock':
       return _.get(state, 'lock', 'UNLOCKED')
+    case 'sensorContact':
+      return _.get(state, 'sensorContact', 'NOT_DETECTED')
     default:
       return _.get(state, propertyName, state)
   }
