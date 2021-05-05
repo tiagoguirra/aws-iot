@@ -132,6 +132,18 @@ const reportTranformState = (state: any, propertyName: string) => {
       return _.get(state, propertyName, state)
   }
 }
+
+const modeControll = async (deviceId: string, mode: string, value: string) => {
+  const response = await updateStateDevice(deviceId, { [mode]: value })
+  return {
+    instance: mode,
+    name: 'mode',
+    value: _.get(response, mode, value),
+    namespace: Alexa.DirectiveName.ModeController,
+    timeOfSample: new Date().toISOString(),
+    uncertaintyInMilliseconds: 6000,
+  }
+}
 const reportControll = async (
   deviceId: string
 ): Promise<Alexa.ContextProperty[]> => {
@@ -226,6 +238,13 @@ export default (payload: Alexa.Interface): Promise<Alexa.Response> => {
             propertiesResponse = await reportControll(endpointId)
             eventResponse.header.name = Alexa.DirectiveName.StateReport
           }
+          break
+        case Alexa.DirectiveName.ModeController:
+          propertiesResponse = await modeControll(
+            endpointId,
+            _.get(payload, 'directive.header.instance'),
+            _.get(payload, 'directive.payload.mode')
+          )
           break
         default:
       }

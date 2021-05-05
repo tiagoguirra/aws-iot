@@ -43,6 +43,7 @@ export enum DirectiveName {
   ReportState = 'ReportState',
   StateReport = 'StateReport',
   connectivity = 'connectivity',
+  ModeController = 'Alexa.ModeController',
 }
 
 export type Payload = PayloadAuthorization | { [name: string]: any }

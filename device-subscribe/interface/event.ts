@@ -26,6 +26,10 @@ export interface EventRegister extends EventBase {
     brightness: boolean
     lock: boolean
   }
+  modes?: {
+    name: string
+    values: string[]
+  }[]
   device_template: DeviceTemplate
   topic_events: string
 }
@@ -50,6 +54,9 @@ export enum DeviceTemplate {
   light_rgb = 'light_rgb',
   light_brightness = 'light_brightness',
   smartlock = 'smartlock',
+  sensorContact = 'sensorContact',
+  sensorTemperature = 'sensorTemperature',
+  doorlBell = 'doorlBell',
 }
 export type EventPayload = EventPhysicalInteraction | EventRegister
 
@@ -60,6 +67,7 @@ export enum PropertyNamespaceMap {
   'brightness' = DirectiveName.BrightnessController,
   'sensorContact' = DirectiveName.ContactSensor,
   'sensorTemperature' = DirectiveName.TemperatureSensor,
+  'doorlBell' = DirectiveName.DoorbellEventSource,
 }
 export enum PropertyNameMap {
   'power' = CapacitySupport.powerState,
@@ -68,6 +76,7 @@ export enum PropertyNameMap {
   'brightness' = CapacitySupport.brightness,
   'sensorContact' = CapacitySupport.detectionState,
   'sensorTemperature' = CapacitySupport.temperature,
+  'mode' = CapacitySupport.mode,
 }
 
 export enum DeviceCategoryMap {
@@ -78,6 +87,7 @@ export enum DeviceCategoryMap {
   switch = 'SWITCH',
   sensorContact = 'CONTACT_SENSOR',
   sensorTemperature = 'TEMPERATURE_SENSOR',
+  doorlBell = 'DOORBELL',
 }
 export interface LambdaContext {
   succeed(response: any): void

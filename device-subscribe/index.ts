@@ -8,6 +8,7 @@ import {
   PropertyNamespaceMap,
   PropertyNameMap,
   DeviceCategoryMap,
+  DeviceTemplate,
 } from './interface/event'
 import { DeviceDB, UserToken } from './interface/db'
 import * as Alexa from './interface/alexa'
@@ -18,6 +19,7 @@ import axios from 'axios'
 import { Log } from './lib/log'
 import { findUser, saveDevice, findDevice } from './database'
 import { rgbToHsb } from './helpers/color'
+import DeviceNormalize from './helpers/normalize'
 
 const reportAlexa = async (payload: any, tokens: UserToken) => {
   const response = await axios.post(
@@ -54,7 +56,7 @@ const handlerRegister = async (payload: EventRegister) => {
     device.device_template,
     DeviceCategoryMap.switch
   )
-  const deviceEndpoint = {
+  const deviceEndpoint: any = {
     endpointId: device.device_id,
     manufacturerName: 'Guirra DIY',
     friendlyName: device.name,
@@ -81,20 +83,21 @@ const handlerRegister = async (payload: EventRegister) => {
     const prop = payload.properties[key]
     if (prop) {
       device.capabilities.push(key)
-      deviceEndpoint.capabilities.push({
-        interface: _.get(PropertyNamespaceMap, key, PropertyNamespaceMap.power),
-        type: Alexa.CapacityType.AlexaInterface,
-        version: '3',
-        properties: {
-          supported: [
-            {
-              name: _.get(PropertyNameMap, key, PropertyNameMap.power),
-            },
-          ],
-          proactivelyReported: true,
-          retrievable: true,
-        },
-      })
+      switch (prop) {
+        default:
+          deviceEndpoint.capabilities.push(
+            DeviceNormalize.DefaultController(key)
+          )
+      }
+    }
+  }
+  if (payload.modes) {
+    for (let i in payload.modes) {
+      const mode = payload.modes[i]
+      DeviceNormalize.ModeController(mode.name, mode.values)
+      deviceEndpoint.capabilities.push(
+        DeviceNormalize.ModeController(mode.name, mode.values)
+      )
     }
   }
   await saveDevice(device)
@@ -147,32 +150,8 @@ const handlerPhysicalInteraction = async (
   payload: EventPhysicalInteraction
 ) => {
   const device: DeviceDB = await findDevice(payload.device_id)
-  const propertyChange = {
-    namespace: _.get(
-      PropertyNamespaceMap,
-      payload.property,
-      PropertyNamespaceMap.power
-    ),
-    name: _.get(PropertyNameMap, payload.property, PropertyNameMap.power),
-    value: reportTranformState(_.get(payload, 'state', {}), payload.property),
-    timeOfSample: new Date().toISOString(),
-    uncertaintyInMilliseconds: 0,
-  }
-  Log('Value change', _.get(payload, ['state', payload.property], ''))
-  const propertiesNotChange = []
-  for (let key in payload.state) {
-    if (key !== payload.property) {
-      propertiesNotChange.push({
-        namespace: _.get(PropertyNamespaceMap, key, PropertyNamespaceMap.power),
-        name: _.get(PropertyNameMap, key, PropertyNameMap.power),
-        value: reportTranformState(_.get(payload, 'state', {}), key),
-        timeOfSample: new Date().toISOString(),
-        uncertaintyInMilliseconds: 6000,
-      })
-    }
-  }
   const tokens = await getAlexaCredentials(device.user_id)
-  const payloadAlexa = {
+  let payloadAlexa = {
     event: {
       header: {
         namespace: Alexa.DirectiveName.Alexa,
@@ -192,14 +171,62 @@ const handlerPhysicalInteraction = async (
           cause: {
             type: 'PHYSICAL_INTERACTION',
           },
-          properties: [propertyChange],
         },
       },
     },
-    context: {
-      properties: propertiesNotChange,
-    },
+    change: {},
   }
+  switch (device.device_template) {
+    case DeviceTemplate.doorlBell:
+      _.set(
+        payloadAlexa,
+        'event.header.namespace',
+        Alexa.DirectiveName.DoorbellEventSource
+      )
+      _.set(
+        payloadAlexa,
+        'event.header.name',
+        Alexa.DirectiveName.DoorbellPress
+      )
+      _.set(payloadAlexa, 'event.payload.timestamp', new Date().toISOString())
+      break
+    default:
+      const propertyChange = {
+        namespace: _.get(
+          PropertyNamespaceMap,
+          payload.property,
+          PropertyNamespaceMap.power
+        ),
+        name: _.get(PropertyNameMap, payload.property, PropertyNameMap.power),
+        value: reportTranformState(
+          _.get(payload, 'state', {}),
+          payload.property
+        ),
+        timeOfSample: new Date().toISOString(),
+        uncertaintyInMilliseconds: 0,
+      }
+      const propertiesNotChange = []
+      for (let key in payload.state) {
+        if (key !== payload.property) {
+          propertiesNotChange.push({
+            namespace: _.get(
+              PropertyNamespaceMap,
+              key,
+              PropertyNamespaceMap.power
+            ),
+            name: _.get(PropertyNameMap, key, PropertyNameMap.power),
+            value: reportTranformState(_.get(payload, 'state', {}), key),
+            timeOfSample: new Date().toISOString(),
+            uncertaintyInMilliseconds: 6000,
+          })
+        }
+      }
+      _.set(payloadAlexa, 'event.payload.change.properties', [propertyChange])
+      _.set(payloadAlexa, 'context.properties', [propertiesNotChange])
+      Log('Value change', _.get(payload, ['state', payload.property], ''))
+      break
+  }
+
   await reportAlexa(payloadAlexa, tokens)
 }
 

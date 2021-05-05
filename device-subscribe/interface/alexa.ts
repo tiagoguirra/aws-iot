@@ -35,12 +35,16 @@ export enum DirectiveName {
   Authorization = 'Alexa.Authorization',
   ContactSensor = 'Alexa.ContactSensor',
   TemperatureSensor = 'Alexa.TemperatureSensor',
+  DoorbellEventSource = 'Alexa.DoorbellEventSource',
   Alexa = 'Alexa',
   Discovery = 'Alexa.Discovery',
   Response = 'Response',
   AddOrUpdateReport = 'AddOrUpdateReport',
   StateReport = 'StateReport',
   ChangeReport = 'ChangeReport',
+  DoorbellPress = 'DoorbellPress',
+  ModeController = 'Alexa.ModeController',
+  SetMode = 'SetMode',
 }
 
 export type Payload = PayloadAuthorization | { [name: string]: any }
@@ -145,6 +149,8 @@ export enum CapacityInterface {
   Alexa = 'Alexa',
   ContactSensor = 'Alexa.ContactSensor',
   EndpointHealth = 'Alexa.EndpointHealth',
+  DoorbellEventSource = 'Alexa.DoorbellEventSource',
+  ModeController = 'Alexa.ModeController',
 }
 export enum CapacitySupport {
   powerState = 'powerState',
@@ -154,4 +160,6 @@ export enum CapacitySupport {
   detectionState = 'detectionState',
   temperature = 'temperature',
   connectivity = 'connectivity',
+  DoorbellPress = 'DoorbellPress',
+  mode = 'mode',
 }
